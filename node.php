@@ -8,6 +8,7 @@ class Node {
 	public $down;
 	public $right;
 	public $findcount=0;
+	public static $node_count = 0;
 
 	/*Constructor*/	
 	public function __construct($x=0, $y=0, $width=0, $height=0, $used= false,$down= null, $right=null){
@@ -18,7 +19,11 @@ class Node {
 		$this->used = $used; //Flag to determine if the node is used.
 		$this->down = $down; //Node Class
 		$this->right = $right; //Node Class
+		self::$node_count++;
 	
+	}
+	public static function nodes(){
+		return self::$node_count;
 	}
 	/*Find a node to allocate this image size (width, height).
 	@param node Node to search in
@@ -28,24 +33,15 @@ class Node {
 	public function find($node=null,$width=0,$height=0){
 		$result = null;
 		$this->findcount++;
-		//var_dump($node);
-		//echo "<br/><br/>";
-		$msg = 'empty(false)';
+
 		if($node->used){
-			$msg = "used";
-			//echo "find {$this->findcount}:u: ".$msg . "<br/>";
 			$result =  $this->find($node->down, $width, $height);
 			if(!$result){
 				$result = $this->find($node->right, $width, $height);
 			}
-			//echo "AND result is&hellip;<br/>";
-			//var_dump($result);
-			//echo "<br/>";
 		}elseif($node->width >= $width && $node->height >= $height){
-			$msg="width check";
 			$result = $node;
 		}
-		//echo "find {$this->findcount}: ".$msg . "<br/>";
 		return $result;
 	}
 	/*
@@ -60,9 +56,11 @@ class Node {
 		$node->used = true;
 		
 		$node->down = new Node($node->x,$node->y + $height,$node->width,$node->height - $height);
-		
+		//echo sprintf("splitdown=> x: %d y: %d w: %d h: %d <br/>",$node->x,$node->y + $height,$node->width,$node->height - $height);
 		$node->right = new Node($node->x + $width,$node->y,$node->width - $width,$height);
+		//echo sprintf("splitright=> x: %d y: %d w: %d h: %d <br/>",$node->x + $width,$node->y,$node->width - $width,$height);
 		
+		//echo sprintf("SELF=> x: %d y: %d w: %d h: %d <br/>",$node->x,$node->y,$node->width,$node->height);
 		return $node;
 	}
 	/*
@@ -76,7 +74,6 @@ class Node {
 		
 		$should_grow_down = $can_grow_down && $this->width  >= ($this->height + $height);
 		$should_grow_right = $can_grow_right && $this->height >= ($this->width + $width);
-		//echo "Growth ability:{$can_grow_down},{$can_grow_right},{$should_grow_down},{$should_grow_right}<br/>";
         if($should_grow_right){
         	//echo "should grow right<br/>";
             return $this->grow_right($width, $height);
@@ -99,16 +96,17 @@ class Node {
         @param height Pixels to grow down (height).
     */
 	private function grow_right($width, $height){
+		//echo "RIGHT we grow {$width}, {$height}<br/>";
 		$that = clone $this;
 		$this->used=true;
-		//$this->x = $this->y = 0;
+		$this->x = $this->y = 0;
 		$this->width += $width;
 		$this->down = $that;
 		$this->right = new Node($that->width,0,$width,$this->height);
-		
+		//echo sprintf("x: %d y: %d w: %d h: %d <br/>",$that->width,0,$width,$this->height);
 		$node = $this->find($this,$width,$height);
 		if($node){
-			$this->split($node,$width,$height);
+			return $this->split($node,$width,$height);
 		}
 		return null;
 	}
@@ -119,23 +117,17 @@ class Node {
         @param height Pixels to grow down (height).
     */
 	private function grow_down($width, $height){
-		//echo "Down we grow {$width}, {$height}<br/>";
+		//echo "DOWN we grow {$width}, {$height}<br/>";
 		$that = clone $this;
 		$this->used=true;
-		//$this->x = $this->y = 0;
+		$this->x = $this->y = 0;
 		$this->height += $height;
 		$this->right = $that;
+		//echo sprintf("x: %d y: %d w: %d h: %d <br/>",0,$that->height,$this->width,$height);
 		$this->down = new Node(0,$that->height,$this->width,$height);
-		//print_r($this);
-		//echo sizeof($that)."<br/><br/>";
-		//echo "Finding from Grow down<br/>";
 		$node = $this->find($this,$width,$height);
-		//echo "DONE Finding from Grow down<br/>";
 		if($node){
-			//echo $node;
-			//echo "node is an object? " .(is_object($node)?'yes':'no')."<br/>";
-			//echo "grow down->splitsville<br/>";
-			$this->split($node,$width,$height);
+			return $this->split($node,$width,$height);
 		}
 		return null;
 	}

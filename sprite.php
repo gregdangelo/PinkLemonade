@@ -4,16 +4,19 @@ class Sprite {
 	private $name;
 	public $path;
 	public $output_path;
+	public static $sprite_count = 0;
 
 	public function __construct($name='',$path=''){
 		$this->images = array();
 		$this->name = $name;
 		$this->path = $path;
+		self::$sprite_count++;
 		$this->process();
 	}
+	public static function sprites(){
+		return self::$sprite_count;
+	}
 	private function gather_images(){
-		//d(is_dir($this->path) ? 'yes':'no');
-		//echo '<br/>';
 		try{
 			if (!is_dir($this->path)) {
 				throw new Exception('Path provides is not a valid directory');		
@@ -39,7 +42,7 @@ class Sprite {
 					}
 				}
 				closedir($dh);
-				//Sort our Images
+				//Sort our Images... gotta work on that function name though
 				usort($this->images,"Image::sidesort");
 			}
 		}catch(Exception $ex){
@@ -56,22 +59,22 @@ class Sprite {
 			if(!sizeof($this->images)){
 				$this->gather_images();
 			}
+			//Make sure we have some images
 			if(!sizeof($this->images)){
 				throw new Exception('No IMAGES');
 			}
 			if( sizeof($this->images) ){
 				$w = $this->images[0]->width;
 				$h = $this->images[0]->height;
-				//echo "{$w}:{$h}<br/>";
 				$root = new Node(0,0,$w,$h);
+				//echo sprintf("Root Node => x: %d y: %d w: %d h: %d <br/>",0,0,$w,$h);
+				//echo sprintf("Root Node => x: %d y: %d w: %d h: %d <br/>",$root->x,$root->y,$root->width,$root->height);
 				$i=0;
 				//Loop all over the images creating a binary tree
 				foreach($this->images as $image){
 					//echo "<h3>Iteration ".($i+1)."</h3>";
-					//echo "{$image->name}:{$image->width},{$image->height}<br/>";
+					//echo "<hr/>{$image->name}:&nbsp;&nbsp;{$image->width},{$image->height}<br/>";
 					$node = $root->find($root, $image->width, $image->height);
-					//var_dump($node);
-					//echo "<br/><br/>";
 					if($node){
 						//echo "splitting {$i}<br/>";
 						$image->node = $root->split($node, $image->width, $image->height);
@@ -91,27 +94,48 @@ class Sprite {
 	}
 	/*Create the image file for this sprite.*/
     public function save_image(){
-    	//echo "saving time<br/>";
+
     	$this->output_path = __DIR__.'/images';
     	// Search for the max x and y (Necessary to generate the canvas).
         $width = $height = 0;
-        
+
+        //Find the height and width to use for our image
         foreach($this->images as $image){
 			$x = $image->x() + $image->width;
 			$y = $image->y() + $image->height;
             $width  = ($width < $x) ? $x :$width;
             $height = ($height < $y) ? $y : $height;
+            //echo sprintf("<br/>%s=> x: %d y: %d w: %d h: %d <br/>",$image->name,$image->x(),$image->y(),$image->width,$image->height);
+
         }
-        $width = 218;$height = 207;
+        //When done tesing it would be smart to remove this kind of thing
+        //$width = 218;$height = 207;
+        
+        //Will want to use allow for using ImageMagik too eventually
         $img = imagecreatetruecolor($height, $width) or die("Cannot Initialize new GD image stream");
         foreach($this->images as $image){
-			$imgsprite = imagecreatefrompng($image->path.'/'.$image->name);
+			//Handle our available extensions
+			switch($image->extension){
+				case 'png':
+					$imgsprite = imagecreatefrompng($image->path.'/'.$image->name);
+					break;
+				case 'jpg':
+				case 'jpeg':
+					$imgsprite = imagecreatefromjpeg($image->path.'/'.$image->name);
+					break;
+				case 'gif':
+					$imgsprite = imagecreatefromgif($image->path.'/'.$image->name);
+					break;
+			}
+			
 			imagecopy( $img,$imgsprite, $image->x(), $image->y(),0, 0, $image->width, $image->height);
         }
-        //echo "Save File<br/>";
-        $img_name = 'test.png';
+
+
+        $img_name = 'test.png';//Really? lol, maybe I should use the name I passed in
         $r = imagepng($img,__DIR__.'/sprites/'.$img_name);
-        //echo ($r ? 'created':'oops');
+        
+        //Clean up time
         imagedestroy($img);
     }
     public function printTree(){
