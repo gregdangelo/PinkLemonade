@@ -9,6 +9,11 @@ based on Lemonade (Ruby) and Glue (Python)
 TODO
 -------
 * Fix finals bugs and complete
+    + spacing/padding
+    + remove any left over testing bits
+* Add in expected features
+    + cropping
+    + padding
 * Integrate with LessPHP
 * Allow to work as standalone
 * Create a Unit Tests
