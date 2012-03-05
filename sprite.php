@@ -111,32 +111,20 @@ class Sprite {
         //When done tesing it would be smart to remove this kind of thing
         //$width = 218;$height = 207;
         
-        //Will want to use allow for using ImageMagik too eventually
-        $img = imagecreatetruecolor($height, $width) or die("Cannot Initialize new GD image stream");
+        //Will want to use allow for using ImageMagik too eventually... ok you can do work on that in Image Class now
+        $img = Image::create($width,$height); //wrap in a try catch
         foreach($this->images as $image){
-			//Handle our available extensions
-			switch($image->extension){
-				case 'png':
-					$imgsprite = imagecreatefrompng($image->path.'/'.$image->name);
-					break;
-				case 'jpg':
-				case 'jpeg':
-					$imgsprite = imagecreatefromjpeg($image->path.'/'.$image->name);
-					break;
-				case 'gif':
-					$imgsprite = imagecreatefromgif($image->path.'/'.$image->name);
-					break;
+			$imgsprite = $image->load(); //wrap in an if statement
+			if($imgsprite){
+				imagecopy( $img,$imgsprite, $image->x(), $image->y(),0, 0, $image->width, $image->height);
 			}
-			
-			imagecopy( $img,$imgsprite, $image->x(), $image->y(),0, 0, $image->width, $image->height);
         }
-
 
         $img_name = 'test.png';//Really? lol, maybe I should use the name I passed in
         $r = imagepng($img,__DIR__.'/sprites/'.$img_name);
         
         //Clean up time
-        imagedestroy($img);
+        Image::destroy($img);
     }
     public function printTree(){
     	echo "TREE START<br/><pre>";
