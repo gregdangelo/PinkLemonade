@@ -2,9 +2,10 @@
 class Sprite {
 	private $images;
 	private $name;
-	public $path;
-	public $output_path;
-	public static $sprite_count = 0;
+	private $path;
+	private $output_path;
+	public $namespace = 'sprite';
+	public  static $sprite_count = 0;
 
 	public function __construct($name='',$path=''){
 		$this->images = array();
@@ -15,6 +16,9 @@ class Sprite {
 	}
 	public static function sprites(){
 		return self::$sprite_count;
+	}
+	public function getPath(){
+		return $this->path;
 	}
 	private function gather_images(){
 		try{
@@ -44,6 +48,16 @@ class Sprite {
 				closedir($dh);
 				//Sort our Images... gotta work on that function name though
 				usort($this->images,"Image::sidesort");
+				//foreach($this->images as $image){
+/*
+# Check if there are duplicate class names
+        class_names = [i.class_name for i in images]
+        if len(set(class_names)) != len(images):
+            dup = [i for i in images if class_names.count(i.class_name) > 1]
+            raise MultipleImagesWithSameNameError(dup)
+
+*/
+				//}
 			}
 		}catch(Exception $ex){
 			 echo 'Caught exception: ',  $ex->getMessage(), "\n";
@@ -64,30 +78,24 @@ class Sprite {
 				throw new Exception('No IMAGES');
 			}
 			if( sizeof($this->images) ){
-				$w = $this->images[0]->width;
-				$h = $this->images[0]->height;
+				$dim = $this->images[0]->getDimensions();
+				$w = $dim['width'];
+				$h = $dim['height'];
+				unset($dim);
 				$root = new Node(0,0,$w,$h);
-				//echo sprintf("Root Node => x: %d y: %d w: %d h: %d <br/>",0,0,$w,$h);
-				//echo sprintf("Root Node => x: %d y: %d w: %d h: %d <br/>",$root->x,$root->y,$root->width,$root->height);
 				$i=0;
 				//Loop all over the images creating a binary tree
 				foreach($this->images as $image){
-					//echo "<h3>Iteration ".($i+1)."</h3>";
-					//echo "<hr/>{$image->name}:&nbsp;&nbsp;{$image->width},{$image->height}<br/>";
-					$node = $root->find($root, $image->width, $image->height);
+					$dim = $image->getDimensions();
+					$node = $root->find($root, $dim['width'], $dim['height']);
 					if($node){
-						//echo "splitting {$i}<br/>";
-						$image->node = $root->split($node, $image->width, $image->height);
+						$image->node = $root->split($node, $dim['width'], $dim['height']);
 					}else{
-						//echo "growing {$i}<br/>";
-						$image->node = $root->grow($image->width, $image->height);
+						$image->node = $root->grow($dim['width'], $dim['height']);
 					}
 					$i++;
 				}
-				//echo "Height:".$root->height." - Width:".$root->width."<br/>";
 			}
-
-			//$this->save_image();
 		}catch(Exception $ex){
 			 echo 'Caught exception: ',  $ex->getMessage(), "\n";
 		}
@@ -101,31 +109,82 @@ class Sprite {
 
         //Find the height and width to use for our image
         foreach($this->images as $image){
-			$x = $image->x() + $image->width;
-			$y = $image->y() + $image->height;
+        	$dim = $image->getDimensions();
+			$x = $image->x() + $dim['width'];
+			$y = $image->y() + $dim['height'];
             $width  = ($width < $x) ? $x :$width;
             $height = ($height < $y) ? $y : $height;
-            //echo sprintf("<br/>%s=> x: %d y: %d w: %d h: %d <br/>",$image->name,$image->x(),$image->y(),$image->width,$image->height);
-
         }
-        //When done tesing it would be smart to remove this kind of thing
-        //$width = 218;$height = 207;
         
         //Will want to use allow for using ImageMagik too eventually... ok you can do work on that in Image Class now
         $img = Image::create($width,$height); //wrap in a try catch
         foreach($this->images as $image){
-			$imgsprite = $image->load(); //wrap in an if statement
+			$imgsprite = $image->load();
 			if($imgsprite){
-				imagecopy( $img,$imgsprite, $image->x(), $image->y(),0, 0, $image->width, $image->height);
+				$dim = $image->getDimensions();
+				if(Image::$crop){
+					imagecopy( $img,$imgsprite, $image->x(), $image->y(),$dim[0], $dim[1], $dim[2], $dim[3]);
+				}else{
+					imagecopy( $img,$imgsprite, $image->x(), $image->y(),0, 0, $dim['width'], $dim['height']);
+				}
 			}
         }
 
         $img_name = 'test.png';//Really? lol, maybe I should use the name I passed in
-        $r = imagepng($img,__DIR__.'/sprites/'.$img_name);
+        $r = imagepng($img,__DIR__.'/sprites/'.$this->name);
         
         //Clean up time
         Image::destroy($img);
     }
+    public function save_css(){
+/*
+        """Create the CSS or LESS file for this sprite."""
+        format = 'less' if self.config.less else 'css'
+        self.manager.log("Creating '%s' %s file..." % (self.name, format))
+
+        output_path = self.manager.output_path('css')
+        filename = '%s.%s' % (self.filename, format)
+        css_filename = os.path.join(output_path, filename)
+
+        # Fix css urls on Windows
+        css_filename = '/'.join(css_filename.split('\\'))
+
+        css_file = open(css_filename, 'w')
+
+        # get all the class names and join them
+        class_names = ['.%s' % i.class_name for i in self.images]
+        class_names = ',\n'.join(class_names)
+
+        # create an unique style for all the sprites for less bloat
+        style = "%s{background-image:url('%s');background-repeat:no-repeat;}\n"
+        css_file.write(style % (class_names, self.image_url))
+
+        for image in self.images:
+            data = {'image_class_name': image.class_name,
+                    'top': image.node.y * -1 if image.node.y else 0,
+                    'left': image.node.x * -1 if image.node.x else 0,
+                    'width': image.width,
+                    'height': image.height}
+
+            style = (".%(image_class_name)s{"
+                     "background-position:%(left)ipx %(top)ipx;")
+
+            if self.config.size:
+                # if it's required add the image size to the sprite
+                style += "width:%(width)spx; height:%(height)spx;"
+
+            style += "}\n"
+
+            css_file.write(style % data)
+
+        css_file.close()
+
+*/
+    }
+    /*
+    * Simply print the node trees for out images
+    *
+    */
     public function printTree(){
     	echo "TREE START<br/><pre>";
     	sizeof($this->images);
@@ -134,7 +193,8 @@ class Sprite {
     		if($image->node){
     			print_r($image->node);
     		}else{
-    			echo sprintf("x:%d y:%d width:%d height:%d<br/>",$image->x(), $image->y(), $image->width, $image->height);
+    			$dim = $image->getDimensions();
+    			echo sprintf("x:%d y:%d width:%d height:%d<br/>",$image->x(), $image->y(), $dim['width'], $dim['height']);
     		}
     	}
     	echo "</pre><br/>TREE END";

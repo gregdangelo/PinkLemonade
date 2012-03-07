@@ -10,17 +10,12 @@ include('PinkLemonade.php');
 <body>
 <?
 	$pk = new PinkLemonade;
-	$pk->sprite('sp.png',__DIR__.'/images');
-	$nc = Node::nodes();
-	$ic = Image::images();
-	$sc = Sprite::sprites();
-	$d = $nc-$ic;
-	echo "There are ".$nc." Node(s) counted<br/>";
-	echo "There are ".$ic." Image(s) counted<br/>";
-	echo "There are ".$sc." Sprite(s) counted<br/>";
-	echo "There is a difference of  ".$d." Nodes to Images<br/>";
-	$pk->viewTrees();
+	$pk->css_filename('test.css');
+	$pk->sprite('sp_test.png',__DIR__.'/images');
+	echo __DIR__;
+	//$pk->viewTrees();
 	$pk->save();
+	
 ?>
 </body>
 </html>
