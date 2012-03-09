@@ -1,10 +1,12 @@
 <?
+
 /*
 PinkLemonade
 */
-//namespace PinkLemonade;
+
 require_once('image.php');
 require_once('node.php');
+require_once('spritecache.php');
 require_once('sprite.php');
 
 class PinkLemonade {
@@ -28,7 +30,9 @@ class PinkLemonade {
 	}
 	public function save(){
 		foreach($this->sprites as $sprite){
+			/*Save our images and then our css*/
 			$sprite->save_image();
+			$sprite->save_css();
 		}
 	}
 	public function viewTrees(){

@@ -1,9 +1,14 @@
 <?
+/*
+things to consider adding
+filemtime  - to get the last modified time so we can cache that... we don't want to run the whole sprite creation if nothing has changed
+*/
 class Sprite {
 	private $images;
 	private $name;
 	private $path;
 	private $output_path;
+	private $img_cache = array();//stores image file modified time
 	public $namespace = 'sprite';
 	public  static $sprite_count = 0;
 
@@ -48,16 +53,24 @@ class Sprite {
 				closedir($dh);
 				//Sort our Images... gotta work on that function name though
 				usort($this->images,"Image::sidesort");
-				//foreach($this->images as $image){
-/*
-# Check if there are duplicate class names
-        class_names = [i.class_name for i in images]
-        if len(set(class_names)) != len(images):
-            dup = [i for i in images if class_names.count(i.class_name) > 1]
-            raise MultipleImagesWithSameNameError(dup)
-
-*/
-				//}
+				$class_names = array();
+				foreach($this->images as $image){
+					$class_names[] = $image->getClassName();
+					$this->set_image_cache($image);//double up on the loop
+				}
+				if(sizeof(array_unique($class_names)) != sizeof($this->images)){
+					$dups = array();
+					$check_dups = array_count_values($class_names);
+					foreach($check_dups as $key=>$value){
+						if($value > 1){
+							$dups[] = $key;
+						}
+					}
+					if(sizeof($dups)){
+						throw new Exception("Error: Some images will have the same class name:".implode(', ',$dups));
+					}
+				}
+				var_dump($this->img_cache);
 			}
 		}catch(Exception $ex){
 			 echo 'Caught exception: ',  $ex->getMessage(), "\n";
@@ -136,50 +149,59 @@ class Sprite {
         //Clean up time
         Image::destroy($img);
     }
+    /*
+    * Create the CSS (or LESS maybe) file for this sprite.
+    */
     public function save_css(){
-/*
-        """Create the CSS or LESS file for this sprite."""
-        format = 'less' if self.config.less else 'css'
-        self.manager.log("Creating '%s' %s file..." % (self.name, format))
+		$output_path = __DIR__.'/css';
+		$filename = "test.css";
+		$css_filename = $output_path.'/'.$filename;
 
-        output_path = self.manager.output_path('css')
-        filename = '%s.%s' % (self.filename, format)
-        css_filename = os.path.join(output_path, filename)
+		$fh = fopen($css_filename,'w+');//create a new file or overwrite our old file if it exists		
+		
+		$class_names = array();
+		foreach($this->images as $image){
+			$class_names[] = ".".$image->getClassName();
+		}
+		$class_names = implode(",\n",$class_names);
+		$style = "%s{background-image:url('%s');background-repeat:no-repeat;}\n";
+		fwrite($fh,sprintf($style,$class_names,$this->name));
 
-        # Fix css urls on Windows
-        css_filename = '/'.join(css_filename.split('\\'))
+		foreach($this->images as $image){
+			$data = array(
+				'image_class_name'=>$image->getClassName()
+				,'top'=> $image->y() * ($image->y() ? -1 : 0) 
+				,'left'=> $image->x() * ($image->x() ? -1 : 0)
+				,'width'=> $image->getWidth()
+				,'height'=> $image->getHeight()
+			);
+			$style = ".%s{background-position:%dpx %dpx;";
+			$include_size = true;//may want to turn this on and off so we'll have to put this flag somewhere that makes sense
+			if($include_size){
+				$style .= "width:%dpx; height:%dpx;";
+			}
+			$style .= "}\n";
+			fwrite($fh,sprintf($style,$data['image_class_name'],$data['top'],$data['left'],$data['width'],$data['height']));
+		}
 
-        css_file = open(css_filename, 'w')
-
-        # get all the class names and join them
-        class_names = ['.%s' % i.class_name for i in self.images]
-        class_names = ',\n'.join(class_names)
-
-        # create an unique style for all the sprites for less bloat
-        style = "%s{background-image:url('%s');background-repeat:no-repeat;}\n"
-        css_file.write(style % (class_names, self.image_url))
-
-        for image in self.images:
-            data = {'image_class_name': image.class_name,
-                    'top': image.node.y * -1 if image.node.y else 0,
-                    'left': image.node.x * -1 if image.node.x else 0,
-                    'width': image.width,
-                    'height': image.height}
-
-            style = (".%(image_class_name)s{"
-                     "background-position:%(left)ipx %(top)ipx;")
-
-            if self.config.size:
-                # if it's required add the image size to the sprite
-                style += "width:%(width)spx; height:%(height)spx;"
-
-            style += "}\n"
-
-            css_file.write(style % data)
-
-        css_file.close()
-
-*/
+		fclose($fh);
+    }
+    //starting to think I should break these out into it's own class file (FileCache ?)
+    private function set_image_cache($image = NULL){
+    	$result = false;
+    	if($image){
+    		$this->img_cache[$image->getName()] = $image->getModifiedTime();
+    	}
+    	return $result;
+    }
+    private function load_image_cache(){
+    	//read cache file
+    }
+    private function save_image_cache(){
+    
+    }
+    private function compare_image_cache(){
+    
     }
     /*
     * Simply print the node trees for out images

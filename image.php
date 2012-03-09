@@ -12,12 +12,13 @@ class Image {
 	private $path;
 	private $width;
 	private $height;
+	private $file_modified;
 	public $node; //shouldn't really be public
 	private $crop_info = array(0,0,0,0,'x'=>0,'y'=>0,'x2'=>0,'y2'=>0);//this should end up as private
 	private $padding_info; //Not used yet
 	private $order = array('maxside','width','height','area');
 	public static $img_count = 0;
-	public static $crop = true;
+	public static $crop = false;
 	private static $algorithm = 'maxside';
 	private static $TRANSPARENT = 127;// for GD 127 is our 255...  it's in the PHP doc's but I haven't really looked at why
 	private static $image_lib = null;
@@ -38,6 +39,7 @@ class Image {
 		$this->extension = substr($this->name,$extChar+1);
 		$this->path = $this->sprite->getPath();
 		$image_path = $this->path .'/'. $this->name;
+		$this->file_modified = filemtime($image_path);
 		$this->class_name = $this->_class_name();
 		list($this->width,$this->height) = getimagesize($image_path);
 		if(self::$crop){
@@ -61,6 +63,21 @@ class Image {
 			$result = $this->node->y();
 		}
 		return $result;
+	}
+	public function getWidth(){
+		return $this->width;
+	}
+	public function getHeight(){
+		return $this->height;
+	}
+	public function getName(){
+		return $this->name;
+	}
+	public function getClassName(){
+		return $this->class_name;
+	}
+	public function getModifiedTime(){
+		return $this->file_modified;
 	}
 	public function getDimensions(){
 		return array_merge($this->crop_info,array('width'=>$this->width,'height'=>$this->height));
