@@ -41,12 +41,12 @@ class ImageLib_gd extends ImageLibrary {
 		imagedestroy($resource);
 	}	
 	public function copy($src,$dst,$dst_x=0,$dst_y=0,$src_x =0, $src_y =0, $src_w =0 , $src_h = 0){
-		return false;
+		return imagecopy( $src,$dst,$dst_x,$dst_y,$src_x , $src_y , $src_w  , $src_h );
 	}	
 	public function is_pixel_transparent($image_resource,$x=0,$y=0){
 		$result = false;
-		$info = $this->getpixel($img_resource,$x,$y);
-		if($info['alpha'] == $transparent_value){
+		$info = $this->getpixel($image_resource,$x,$y);
+		if($info['alpha'] == $this->transparent_value){
 			$result = true;
 		}
 		return $result;

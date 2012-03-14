@@ -41,9 +41,10 @@ class Image {
 		}
 		$a = func_get_args(); 
         $i = func_num_args();
-        if($i){
+        if($i==2){
         	$f='__construct_sprite';
-        	call_user_func_array(array($this,$f),$a);
+        	//second param needs to be passed as a reference
+        	call_user_func_array(array($this,$f),array($a[0],&$a[1]));
         }
 	}
 	public function __construct_sprite($name,&$sprite){
@@ -56,7 +57,7 @@ class Image {
 		$image_path = $this->path .'/'. $this->name;
 		$this->file_modified = filemtime($image_path);
 		$this->class_name = $this->_class_name();
-		list($this->width,$this->height) = $this->image_lib->dimensions($image_path);
+		list($this->width,$this->height) = self::$image_lib->dimensions($image_path);
 		if(self::$crop){
 			$this->_crop();
 		}
@@ -106,7 +107,7 @@ class Image {
 	private function _crop(){		
 		if(!$this->width || !$this->height){
         	$image_path =$this->sprite->path .'/'. $this->name;
-        	list($this->width,$this->height) = $this->image_lib->dimensions($image_path);
+        	list($this->width,$this->height) = self::$image_lib->dimensions($image_path);
         }
         
         $width = $this->width-1;
@@ -114,13 +115,13 @@ class Image {
         $maxx = $maxy = 0;
         $minx = $miny = 65000;//sys.maxint
 
-		$img = $this->image_lib->load();//Load our image, we're going to need to read it's pixels
+		$img = self::$image_lib->load($this->path .'/'. $this->name,$this->extension);//Load our image, we're going to need to read it's pixels
 		for($x=$width;$x>=0;$x--){
 			for($y=$height;$y>=0;$y--){
 				if($y > $miny && $y < $maxy && $maxx == $x){
 					continue;
 				}
-				if(!$this->image_lib->is_pixel_transparent($img,$x,$y)){
+				if(!self::$image_lib->is_pixel_transparent($img,$x,$y)){
 					$minx = $x < $minx ? $x : $minx;
 					$maxx = $x > $maxx ? $x : $maxx;
 					$miny = $y < $miny ? $y : $miny;
@@ -128,7 +129,7 @@ class Image {
 				}
 			}
 		}
-		$this->image_lib->destroy($img);//we only want the image loaded for as little as possible
+		self::$image_lib->destroy($img);//we only want the image loaded for as little as possible
 		//just prep the crop here
 		$this->_prep_crop($minx, $miny, $maxx + 1, $maxy + 1);
 	}
@@ -170,7 +171,7 @@ class Image {
 		return sprintf("%s-%s",$this->sprite->namespace,$name); 
 	}
 	public function load(){
-		return $this->image_lib->load($this->path.'/'.$this->name,$this->extension);
+		return self::$image_lib->load($this->path.'/'.$this->name,$this->extension);
 	}
 	/*
 	* Load our library based on our ImageLibrary class
@@ -201,6 +202,10 @@ class Image {
 	public function destroy($resource){
 		self::$image_lib->destroy($resource);
 	}
+	public function copy($src,$dst,$dst_x=0,$dst_y=0,$src_x =0, $src_y =0, $src_w =0 , $src_h = 0){
+		return self::$image_lib->copy($src,$dst,$dst_x,$dst_y,$src_x , $src_y , $src_w  , $src_h );
+	}
+	
 	/* Static Methods */
 	//This might be able to shed it's STATIC nature
 	public static function sidesort($a,$b){

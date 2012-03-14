@@ -70,7 +70,7 @@ class Sprite {
 						throw new Exception("Error: Some images will have the same class name:".implode(', ',$dups));
 					}
 				}
-				var_dump($this->img_cache);
+				//var_dump($this->img_cache);
 			}
 		}catch(Exception $ex){
 			 echo 'Caught exception: ',  $ex->getMessage(), "\n";
@@ -137,6 +137,7 @@ class Sprite {
         //$img = Image::create($width,$height); //wrap in a try catch
         $img_res = new Image();
         $img = $img_res->create($width,$height); //wrap in a try catch;
+
         foreach($this->images as $image){
 			$imgsprite = $image->load();
 			if($imgsprite){
@@ -150,7 +151,6 @@ class Sprite {
         }
 
         $r = imagepng($img,__DIR__.'/sprites/'.$this->name);
-        
         //Clean up time
         $img_res->destroy($img);
     }
