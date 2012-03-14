@@ -4,6 +4,8 @@
 *
 */
 class Image {
+	/*Public Vars*/
+	/*Private Vars*/
 	private $name;
 	private $sprite;
 	private $filename;
@@ -17,21 +19,34 @@ class Image {
 	private $crop_info = array(0,0,0,0,'x'=>0,'y'=>0,'x2'=>0,'y2'=>0);//this should end up as private
 	private $padding_info; //Not used yet
 	private $order = array('maxside','width','height','area');
+	/*Static Vars*/
 	public static $img_count = 0;
 	public static $crop = false;
 	private static $algorithm = 'maxside';
-	private static $TRANSPARENT = 127;// for GD 127 is our 255...  it's in the PHP doc's but I haven't really looked at why
 	private static $image_lib = null;
 
 	/*
-	Constructor
+	Multiple Constructors
+	Constructor (no args)	
+	
+	Constructor 
 	@param name: Image name.
     @param sprite: Sprite instance for this image
     */
-	public function __construct($name,&$sprite){
+	public function __construct(){
+		//We need to set out image library regardless of what else happens
+		//hmmm think I need to rethink this a bit... would I want to set the library from the constructor?
 		if(!self::$image_lib){
 			self::setLib();			
 		}
+		$a = func_get_args(); 
+        $i = func_num_args();
+        if($i){
+        	$f='__construct_sprite';
+        	call_user_func_array(array($this,$f),$a);
+        }
+	}
+	public function __construct_sprite($name,&$sprite){
 		$this->name = $name;
 		$this->sprite = $sprite;
 		$extChar = strrpos($this->name,'.');
@@ -41,7 +56,7 @@ class Image {
 		$image_path = $this->path .'/'. $this->name;
 		$this->file_modified = filemtime($image_path);
 		$this->class_name = $this->_class_name();
-		list($this->width,$this->height) = getimagesize($image_path);
+		list($this->width,$this->height) = $this->image_lib->dimensions($image_path);
 		if(self::$crop){
 			$this->_crop();
 		}
@@ -91,7 +106,7 @@ class Image {
 	private function _crop(){		
 		if(!$this->width || !$this->height){
         	$image_path =$this->sprite->path .'/'. $this->name;
-        	list($this->width,$this->height) = getimagesize($image_path);
+        	list($this->width,$this->height) = $this->image_lib->dimensions($image_path);
         }
         
         $width = $this->width-1;
@@ -99,13 +114,13 @@ class Image {
         $maxx = $maxy = 0;
         $minx = $miny = 65000;//sys.maxint
 
-		$img = $this->load();//Load our image, we're going to need to read it's pixels
+		$img = $this->image_lib->load();//Load our image, we're going to need to read it's pixels
 		for($x=$width;$x>=0;$x--){
 			for($y=$height;$y>=0;$y--){
 				if($y > $miny && $y < $maxy && $maxx == $x){
 					continue;
 				}
-				if(!$this->_is_transparent_pixel($img,$x,$y)){//the NOT is important
+				if(!$this->image_lib->is_pixel_transparent($img,$x,$y)){
 					$minx = $x < $minx ? $x : $minx;
 					$maxx = $x > $maxx ? $x : $maxx;
 					$miny = $y < $miny ? $y : $miny;
@@ -113,7 +128,7 @@ class Image {
 				}
 			}
 		}
-		self::destroy($img);//we only want the image loaded for as little as possible
+		$this->image_lib->destroy($img);//we only want the image loaded for as little as possible
 		//just prep the crop here
 		$this->_prep_crop($minx, $miny, $maxx + 1, $maxy + 1);
 	}
@@ -155,78 +170,39 @@ class Image {
 		return sprintf("%s-%s",$this->sprite->namespace,$name); 
 	}
 	public function load(){
-		$result = null;
-		$image_path = $this->path.'/'.$this->name;
-		switch($this->extension){
-			case 'png':
-				$result = imagecreatefrompng($image_path);
-				break;
-			case 'jpg':
-			case 'jpeg':
-				$result = imagecreatefromjpeg($image_path);
-				break;
-			case 'gif':
-				$result = imagecreatefromgif($image_path);
-				break;
-		}
-		return $result;
+		return $this->image_lib->load($this->path.'/'.$this->name,$this->extension);
 	}
+	/*
+	* Load our library based on our ImageLibrary class
+	* There's no way right now to easily extend this just by adding a driver class... this function call will need to be refactored... at some point
+	*/
 	private static function setLib(){
 		//try ImageMagik - less of a memory hog
 		if(function_exists("img_magick")){// just a placeholder
-			self::$image_lib = 'imgmagick';
+			self::$image_lib = ImageLibrary::factory('imgmagick');
 		}
 		//try GD - Should be there
 		if(function_exists("gd_info") && !self::$image_lib){
-			self::$image_lib = 'gd';
+			self::$image_lib = ImageLibrary::factory('gd');
 		}
 		if(!self::$image_lib){
 			throw new Exception("No Image Library found");
 		}
 	}
+	public  function create($width = 0,$height = 0){
+		$result = null;
+		try{
+			$result = self::$image_lib->create($width, $height);
+		}catch(Exception $ex){
+			error_log($ex);//Log our error
+		}
+		return $result;
+	}
+	public function destroy($resource){
+		self::$image_lib->destroy($resource);
+	}
 	/* Static Methods */
-	public static function create($width = 0,$height = 0){
-		$result = null;
-		$result = imagecreatetruecolor($width, $height);
-		if(!$result){
-			throw new Exception('Could not create Image');
-		}
-		return $result;
-	}
-	private function _create_from($img_resource,$filename){
-		$result = null;
-		switch($this->extension){
-			case 'png':
-				$result = imagepng($image_path);
-				break;
-			case 'jpg':
-			case 'jpeg':
-				$result = imagejpeg($image_path);
-				break;
-			case 'gif':
-				$result = imagegif($image_path);
-				break;
-		}
-		return $result;
-	}
-	private function getpixel($img_resource,$x,$y){
-		$color_index = imagecolorat($img_resource, $x, $y);
-		//make it human readable
-		$color_tran = imagecolorsforindex($img_resource, $color_index);
-		//Returns an array red,green,blue,alpha
-		return $color_tran;
-	}
-	private function _is_transparent_pixel($img_resource,$x,$y){
-		$result = false;
-		$info = $this->getpixel($img_resource,$x,$y);
-		if($info['alpha'] == self::$TRANSPARENT){
-			$result = true;
-		}
-		return $result;
-	}
-	public static function destroy($resource){
-		imagedestroy($resource);
-	}
+	//This might be able to shed it's STATIC nature
 	public static function sidesort($a,$b){
 		$result = 0;
 		if(self::$algorithm == 'width'){
@@ -235,7 +211,7 @@ class Image {
 			$result = $a->height <= $b->height;
 		}elseif(self::$algorithm == 'area'){
 			$result = ($a->height * $a->width) <= ($b->height * $b->width);
-		}else{
+		}else{ //maxside
 			$result = ($a->height > $a->width ? $a->height : $a->width) <= ($b->height > $b->width ? $b->height : $b->width);
 		}
 		return $result;
