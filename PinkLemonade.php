@@ -4,6 +4,7 @@
 PinkLemonade
 */
 
+require_once('ImageLibrary.php');
 require_once('image.php');
 require_once('node.php');
 require_once('spritecache.php');

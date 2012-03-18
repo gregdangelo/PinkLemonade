@@ -70,7 +70,7 @@ class Sprite {
 						throw new Exception("Error: Some images will have the same class name:".implode(', ',$dups));
 					}
 				}
-				var_dump($this->img_cache);
+				//var_dump($this->img_cache);
 			}
 		}catch(Exception $ex){
 			 echo 'Caught exception: ',  $ex->getMessage(), "\n";
@@ -115,6 +115,10 @@ class Sprite {
 	}
 	/*Create the image file for this sprite.*/
     public function save_image(){
+		//we should be jumping out if we have no images
+		if(!sizeof($this->images)){
+			return false;
+		}
 
     	$this->output_path = __DIR__.'/images';
     	// Search for the max x and y (Necessary to generate the canvas).
@@ -128,31 +132,36 @@ class Sprite {
             $width  = ($width < $x) ? $x :$width;
             $height = ($height < $y) ? $y : $height;
         }
-        
+              
         //Will want to use allow for using ImageMagik too eventually... ok you can do work on that in Image Class now
-        $img = Image::create($width,$height); //wrap in a try catch
+        //$img = Image::create($width,$height); //wrap in a try catch
+        $img_res = new Image();
+        $img = $img_res->create($width,$height); //wrap in a try catch;
+
         foreach($this->images as $image){
 			$imgsprite = $image->load();
 			if($imgsprite){
 				$dim = $image->getDimensions();
 				if(Image::$crop){
-					imagecopy( $img,$imgsprite, $image->x(), $image->y(),$dim[0], $dim[1], $dim[2], $dim[3]);
+					$img_res->copy( $img,$imgsprite, $image->x(), $image->y(),$dim[0], $dim[1], $dim[2], $dim[3]);
 				}else{
-					imagecopy( $img,$imgsprite, $image->x(), $image->y(),0, 0, $dim['width'], $dim['height']);
+					$img_res->copy( $img,$imgsprite, $image->x(), $image->y(),0, 0, $dim['width'], $dim['height']);
 				}
 			}
         }
 
-        $img_name = 'test.png';//Really? lol, maybe I should use the name I passed in
         $r = imagepng($img,__DIR__.'/sprites/'.$this->name);
-        
         //Clean up time
-        Image::destroy($img);
+        $img_res->destroy($img);
     }
     /*
     * Create the CSS (or LESS maybe) file for this sprite.
     */
     public function save_css(){
+		if(!sizeof($this->images)){
+			return false;
+		}
+		
 		$output_path = __DIR__.'/css';
 		$filename = "test.css";
 		$css_filename = $output_path.'/'.$filename;
@@ -186,6 +195,26 @@ class Sprite {
 
 		fclose($fh);
     }
+    
+    /*
+    File Caching methods
+    -- We're not always going to want to run so we're going to create a cache file
+    */
+    private function sprite_changed(){
+    	$result = true;
+    	//Grab the timestamps of the files and compare them with the timestamps of the info_file
+    	return $result;
+    }
+    private function remember_sprite_info(){
+    	//Save file timestamps 
+    }
+    private function info_file(){
+    	//figure out the name of the sprite_info file
+    	//Directory + sprite_name + .sprite_info [extension]
+    }
+    private function timestamps(){
+    	//find the timestamps of each image file into a timestamp array
+    }
     //starting to think I should break these out into it's own class file (FileCache ?)
     private function set_image_cache($image = NULL){
     	$result = false;
@@ -203,6 +232,8 @@ class Sprite {
     private function compare_image_cache(){
     
     }
+
+
     /*
     * Simply print the node trees for out images
     *
