@@ -181,7 +181,7 @@ class Sprite {
 				$style .= "width:%dpx; height:%dpx;";
 			}
 			$style .= "}\n";
-			fwrite($fh,sprintf($style,$data['image_class_name'],$data['top'],$data['left'],$data['width'],$data['height']));
+			fwrite($fh,sprintf($style,$data['image_class_name'],$data['left'],$data['top'],$data['width'],$data['height']));
 		}
 
 		fclose($fh);
