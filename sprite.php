@@ -10,14 +10,22 @@ class Sprite {
 	private $output_path;
 	private $img_cache = array();//stores image file modified time
 	public $namespace = 'sprite';
-	public  static $sprite_count = 0;
+	private $sum_sprite_size = 0;
+	private static $MAX_SIZE = 1000000000;//Max bytes
+	public static $sprite_count = 0;
+	public static $css_generated_files = array();
 
 	public function __construct($name='',$path=''){
 		$this->images = array();
 		$this->name = $name;
 		$this->path = $path;
 		self::$sprite_count++;
-		$this->process();
+		//Let's catch any thrown exceptions here
+		try{
+			$this->process();
+		}catch(Exception $ex){
+			echo 'Caught exception: ',  $ex->getMessage(), "\n";		
+		}
 	}
 	public static function sprites(){
 		return self::$sprite_count;
@@ -26,92 +34,94 @@ class Sprite {
 		return $this->path;
 	}
 	private function gather_images(){
-		try{
-			if (!is_dir($this->path)) {
-				throw new Exception('Path provides is not a valid directory');		
-			}
-			try{
-				$dh = opendir($this->path);
-			}catch(Exception $ex){
-				throw new Exception('Cannot open directory');
-			}
-			if($dh){
-				while (($file = readdir($dh)) !== false) {
-					if(filetype($this->path.'/' . $file) == 'file'){
-						$ext = substr($file,strrpos($file,'.')+1);
-						switch($ext){
-							//Any other image types could go here
-							case 'png':
-							case 'gif':
-							case 'jpg':
-							case 'jpeg':
-								$this->images[] = new Image($file,$this);
-								break;
-						}
-					}
-				}
-				closedir($dh);
-				//Sort our Images... gotta work on that function name though
-				usort($this->images,"Image::sidesort");
-				$class_names = array();
-				foreach($this->images as $image){
-					$class_names[] = $image->getClassName();
-					$this->set_image_cache($image);//double up on the loop
-				}
-				if(sizeof(array_unique($class_names)) != sizeof($this->images)){
-					$dups = array();
-					$check_dups = array_count_values($class_names);
-					foreach($check_dups as $key=>$value){
-						if($value > 1){
-							$dups[] = $key;
-						}
-					}
-					if(sizeof($dups)){
-						throw new Exception("Error: Some images will have the same class name:".implode(', ',$dups));
-					}
-				}
-				//var_dump($this->img_cache);
-			}
-		}catch(Exception $ex){
-			 echo 'Caught exception: ',  $ex->getMessage(), "\n";
+		if (!is_dir($this->path)) {
+			throw new Exception('Path provides is not a valid directory');		
 		}
-		
+		$dh = opendir($this->path);
+		if(!$dh){
+			throw new Exception('Cannot open directory');
+			return false;
+		}
+		while (($file = readdir($dh)) !== false) {
+			if(filetype($this->path.'/' . $file) == 'file'){
+				$ext = substr($file,strrpos($file,'.')+1);
+				switch($ext){
+					//Any other image types could go here
+					case 'png':
+					case 'gif':
+					case 'jpg':
+					case 'jpeg':
+						//need to check image size before we commit to adding it to our arrray
+						$size = filesize($this->path.'/'.$file);
+						if( $size <= self::$MAX_SIZE ){
+							//Need to mad sure we don't over do our max sprite size either
+							//for GD this needs to be under 2GB
+							$this->sum_sprite_size += $size;
+							$this->images[] = new Image($file,$this);
+						}
+						$size = NULL;
+						break;
+				}
+			}
+		}
+		closedir($dh);
+		//Sort our Images... gotta work on that function name though
+		usort($this->images,"Image::sidesort");
+		$class_names = array();
+		foreach($this->images as $image){
+			$class_names[] = $image->getClassName();
+			$this->set_image_cache($image);//double up on the loop
+		}
+		if(sizeof(array_unique($class_names)) != sizeof($this->images)){
+			$dups = array();
+			$check_dups = array_count_values($class_names);
+			foreach($check_dups as $key=>$value){
+				//Checking for duplicates
+				if($value > 1){
+					$dups[] = $key;
+				}
+			}
+			if(sizeof($dups)){
+				throw new Exception("Error: Some images will have the same class name:".implode(', ',$dups));
+			}
+			//cleanup
+			unset($check_dups);
+			unset($dups);
+		}
+		//var_dump($this->img_cache);
+		unset($class_names);
+		unset($dh);
 	}
 	/*
 	Process a sprite path searching for all the images and then
     allocate all of them in the most appropriate position.
 	*/
 	private function process(){
-		try{
-			if(!sizeof($this->images)){
-				$this->gather_images();
-			}
+		if(!sizeof($this->images)){
+			$this->gather_images();
 			//Make sure we have some images
 			if(!sizeof($this->images)){
 				throw new Exception('No IMAGES');
 			}
-			if( sizeof($this->images) ){
-				$dim = $this->images[0]->getDimensions();
-				$w = $dim['width'];
-				$h = $dim['height'];
-				unset($dim);
-				$root = new Node(0,0,$w,$h);
-				$i=0;
-				//Loop all over the images creating a binary tree
-				foreach($this->images as $image){
-					$dim = $image->getDimensions();
-					$node = $root->find($root, $dim['width'], $dim['height']);
-					if($node){
-						$image->node = $root->split($node, $dim['width'], $dim['height']);
-					}else{
-						$image->node = $root->grow($dim['width'], $dim['height']);
-					}
-					$i++;
-				}
-			}
-		}catch(Exception $ex){
-			 echo 'Caught exception: ',  $ex->getMessage(), "\n";
 		}
+		$dim = $this->images[0]->getDimensions();
+		$w = $dim['width'];
+		$h = $dim['height'];
+		$root = new Node(0,0,$w,$h);
+		$i=0;
+		//Loop all over the images creating a binary tree
+		foreach($this->images as $image){
+			$dim = $image->getDimensions();
+			$node = $root->find($root, $dim['width'], $dim['height']);
+			if($node){
+				$image->node = $root->split($node, $dim['width'], $dim['height']);
+			}else{
+				$image->node = $root->grow($dim['width'], $dim['height']);
+			}
+			$i++;
+		}
+		unset($i);
+		unset($dim);
 	}
 	/*Create the image file for this sprite.*/
     public function save_image(){
@@ -153,11 +163,12 @@ class Sprite {
         $r = imagepng($img,__DIR__.'/sprites/'.$this->name);
         //Clean up time
         $img_res->destroy($img);
+        unset($r);
     }
     /*
     * Create the CSS (or LESS maybe) file for this sprite.
     */
-    public function save_css(){
+    public function save_css($cssfile = ''){
 		if(!sizeof($this->images)){
 			return false;
 		}
@@ -166,7 +177,12 @@ class Sprite {
 		$filename = "test.css";
 		$css_filename = $output_path.'/'.$filename;
 
-		$fh = fopen($css_filename,'w+');//create a new file or overwrite our old file if it exists		
+		$file_write = 'w';//(re-)create our file
+		
+		if(isset(self::$css_generated_files[$css_filename])){
+			$file_write = 'a';//append to our file
+		}
+		$fh = fopen($css_filename,$file_write);//create a new file or overwrite our old file if it exists		
 		
 		$class_names = array();
 		foreach($this->images as $image){
@@ -192,7 +208,10 @@ class Sprite {
 			$style .= "}\n";
 			fwrite($fh,sprintf($style,$data['image_class_name'],$data['left'],$data['top'],$data['width'],$data['height']));
 		}
-
+		//if we have mutiple sprites using the same css file we want to append not overwrite
+		if(!isset(self::$css_generated_files[$css_filename])){
+			self::$css_generated_files[$css_filename] = true;
+		}
 		fclose($fh);
     }
     
