@@ -16,6 +16,8 @@ class ImageLib_gd extends ImageLibrary {
 				$result = imagecreatefromgif($image_path);
 				break;
 		}
+		//
+		imagealphablending($result, false);
 		return $result;
 	}
 	public function dimensions($image_path = ''){
@@ -31,6 +33,13 @@ class ImageLib_gd extends ImageLibrary {
 		$result = false;
 		if($width && $height){
 			$result = imagecreatetruecolor($width, $height);
+			//imagecolorallocatealpha($result,255,255,255,127);
+//$black = imagecolorallocate($result, 0, 0, 0);
+
+// Make the background transparent
+//imagecolortransparent($result, $black);
+			
+			
 		}
 		if(!$result){
 			throw new Exception('Could not create Image');
@@ -41,8 +50,13 @@ class ImageLib_gd extends ImageLibrary {
 		imagedestroy($resource);
 	}	
 	public function copy($src,$dst,$dst_x=0,$dst_y=0,$src_x =0, $src_y =0, $src_w =0 , $src_h = 0){
+		//return imagecopymerge( $src,$dst,$dst_x,$dst_y,$src_x , $src_y , $src_w  , $src_h , 100);
 		return imagecopy( $src,$dst,$dst_x,$dst_y,$src_x , $src_y , $src_w  , $src_h );
-	}	
+	}
+	public function save($img_resource,$path){
+		imagesavealpha($img_resource,true);
+		return imagepng($img_resource,$path);
+	}
 	public function is_pixel_transparent($image_resource,$x=0,$y=0){
 		$result = false;
 		$info = $this->getpixel($image_resource,$x,$y);

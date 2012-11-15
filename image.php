@@ -180,7 +180,7 @@ class Image {
 	private static function setLib(){
 		//try ImageMagik - less of a memory hog
 		if(function_exists("img_magick")){// just a placeholder
-			self::$image_lib = ImageLibrary::factory('imgmagick');
+			//self::$image_lib = ImageLibrary::factory('imgmagick');
 		}
 		//try GD - Should be there
 		if(function_exists("gd_info") && !self::$image_lib){
@@ -205,7 +205,10 @@ class Image {
 	public function copy($src,$dst,$dst_x=0,$dst_y=0,$src_x =0, $src_y =0, $src_w =0 , $src_h = 0){
 		return self::$image_lib->copy($src,$dst,$dst_x,$dst_y,$src_x , $src_y , $src_w  , $src_h );
 	}
-	
+
+	public function save($resource,$path){
+		return self::$image_lib->save($resource,$path);
+	}
 	/* Static Methods */
 	//This might be able to shed it's STATIC nature
 	public static function sidesort($a,$b){

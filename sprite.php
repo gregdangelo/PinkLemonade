@@ -160,7 +160,8 @@ class Sprite {
 			}
         }
 
-        $r = imagepng($img,__DIR__.'/sprites/'.$this->name);
+        //$r = imagepng($img,__DIR__.'/sprites/'.$this->name);
+        $r = $img_res->save($img,__DIR__.'/sprites/'.$this->name);
         //Clean up time
         $img_res->destroy($img);
         unset($r);
