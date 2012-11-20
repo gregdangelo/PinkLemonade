@@ -17,7 +17,9 @@ class ImageLib_gd extends ImageLibrary {
 				break;
 		}
 		//
-		imagealphablending($result, false);
+		//imagealphablending($result, true);
+		//imagesavealpha($result, true);
+		
 		return $result;
 	}
 	public function dimensions($image_path = ''){
@@ -33,12 +35,17 @@ class ImageLib_gd extends ImageLibrary {
 		$result = false;
 		if($width && $height){
 			$result = imagecreatetruecolor($width, $height);
+			
 			//imagecolorallocatealpha($result,255,255,255,127);
 //$black = imagecolorallocate($result, 0, 0, 0);
 
 // Make the background transparent
 //imagecolortransparent($result, $black);
-			
+imagealphablending($result, false);
+			$col=imagecolorallocatealpha($result,255,255,255,127);
+			imagefilledrectangle($result,0,0,$width, $height,$col);
+			imagealphablending($result, false);
+			imagesavealpha($result, true);
 			
 		}
 		if(!$result){
@@ -51,6 +58,8 @@ class ImageLib_gd extends ImageLibrary {
 	}	
 	public function copy($src,$dst,$dst_x=0,$dst_y=0,$src_x =0, $src_y =0, $src_w =0 , $src_h = 0){
 		//return imagecopymerge( $src,$dst,$dst_x,$dst_y,$src_x , $src_y , $src_w  , $src_h , 100);
+		 //resource $dst_image , resource $src_image , int $dst_x , int $dst_y , int $src_x , int $src_y , int $dst_w , int $dst_h , int $src_w , int $src_h
+		//return imagecopyresampled( $src,$dst,$dst_x,$dst_y,$src_x , $src_y ,50,50, $src_w  , $src_h );
 		return imagecopy( $src,$dst,$dst_x,$dst_y,$src_x , $src_y , $src_w  , $src_h );
 	}
 	public function save($img_resource,$path){
